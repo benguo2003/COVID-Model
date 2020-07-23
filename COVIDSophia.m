@@ -16,7 +16,7 @@ delta=1/10;                 % rate H->R
 omega=(0.10/0.95)*delta;    % rate H->D (assume 10% mortality rate)
 
 % Initialize the state of the population
-Seeds=floor(0.005*N);                    % number of exposed seeds
+Seeds=10;                    % number of exposed seeds
 E=zeros(N,1);       % initial infected seed
 for seed=1:Seeds
     RandSeed=ceil(N*rand);
@@ -30,7 +30,7 @@ t=0;
 while (sum(E)+sum(I)>0)
 
     % Update variables
-    t=t+1;
+    t=t+1;          
     TotalS(t)=sum(S);
     TotalE(t)=sum(E);
     TotalI(t)=sum(I);
