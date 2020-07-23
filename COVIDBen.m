@@ -66,7 +66,6 @@ while (sum(I)+sum(E)>0)
     % Always in Lockdown
     lock(t) = 1;
     
-    
     %%  Transition
     
     % Transition from S to E
