@@ -61,8 +61,28 @@ while (sum(I)+sum(E)>0)
     
     % Transition from S to E
     NI=Arand*I;  % vector with number of infected neighbors
-    NewE=rand(N,1)<1-(1-beta).^(NI);
-    NewE=and(NewE,boolean(S));
+
+    %NewE=and(NewE,boolean(S));
+    
+    mask(t)=0;
+    maskscount=1000;
+    peopleWithMaskDis=0;
+         
+    if maskscount>0 %if maskscount = 0, then the dispenser will no longer run
+        maskDis(t)=rand()<0.65;  %random number of people who get mask
+        if(maskDis(t)==1)
+            mask(t)=1;
+            peopleWithMaskDis= peopleWithMaskDis+1; %the people who get a mask from the dispenser increases by 1
+            maskscount=maskscount - 1;   %the number of masks availiable decreases when someone takes a mask
+        end
+    end
+       
+    if mask(t)==1
+        NewE=rand(N,1)<1-(1-(beta-0.14)).^(NI); % mask used
+        NewE=and(NewE,maskDis(t));
+    else
+        NewE=rand(N,1)<1-(1-beta).^(NI);       % no masks used
+    end
     
     % Testing mailing implementation
     for nodei=1:N
@@ -80,6 +100,10 @@ while (sum(I)+sum(E)>0)
     % Transition from E to I
     CoinE2I=rand(N,1)<alpha;
     NewI=and(CoinE2I,boolean(E));
+    if rand(size(A,1),1) < 0.001             %max rate virus spreads when touching surfaces
+        touchInfected(t) = 1;
+        NewI = and(NewI, touchInfected(t));
+    end
     
     % Transition from I to H
     RandomNumber=rand(N,1);
@@ -116,16 +140,18 @@ while (sum(I)+sum(E)>0)
     t=t+1
 
 end
+
 TotalDeaths=TotalD(t-1)         % total number of deaths
 DaysLocked=sum(lock)            % days in locked down
 DaysCOVID=t                     % days before eradication
 
 % Plot results
 figure;
-plot(TotalS,'b'); hold on
-plot(TotalR,'g')
+plot(TotalS/N,'b'); hold on;
+plot(TotalI/N,'g');
 figure;
 plot(TotalE,'color',[0.9100    0.4100    0.1700]); hold on
-plot(TotalI,'r')
-plot(TotalH,'k')
-plot(TotalD,'m')
+plot(TotalI,'r'); 
+plot(TotalH,'k'); 
+plot(TotalD,'m');
+plot(TotalR,'g');
