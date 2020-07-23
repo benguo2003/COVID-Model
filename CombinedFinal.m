@@ -30,18 +30,16 @@ mailedTestingWorks = 0;
 
 % graph for lockdown
 Arand=A;
-    for nodei=1:N
-        for nodej=nodei+1:N
-            edgecoin=rand<0.5;      % remove a percentage of edges
-            if edgecoin==1
-                Arand(nodei,nodej)=0; Arand(nodej,nodei)=0;
-            end
+for nodei=1:N
+    for nodej=nodei+1:N
+        edgecoin=rand<0.5;      % remove a percentage of edges
+        if edgecoin==1
+            Arand(nodei,nodej)=0; Arand(nodej,nodei)=0;
         end
     end
-
+end
 t=1;
 
-%%
 
 % Run iterations
 while (sum(I)+sum(E)>0)
@@ -57,12 +55,8 @@ while (sum(I)+sum(E)>0)
     % Always in Lockdown
     lock(t) = 1;
     
-    %%  Transition
-    
     % Transition from S to E
     NI=Arand*I;  % vector with number of infected neighbors
-
-    %NewE=and(NewE,boolean(S));
     
     mask(t)=0;
     maskscount=1000;
@@ -136,7 +130,7 @@ while (sum(I)+sum(E)>0)
     H=H+NewH-NewR2-NewD2;
     R=R+NewR1+NewR2;
     D=D+NewD1+NewD2;
-    %%
+    
     t=t+1
 
 end
