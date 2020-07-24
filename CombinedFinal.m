@@ -7,27 +7,44 @@ close all                   % close all previous plots
 load FB2404                % loads the adjacency matrix A
 
 N=size(A,1);
-beta=0.08;                  % assume 8% spread rate
+beta=0.056;                 % assume 5.6% spread rate
 alpha=1/5;                  % rate E->I assuming 5 days incubation
 delta=1/14;                 % rate I->R assuming 14 days recovery
 omega=0.04;                 % rate I->D assuming 4% mortality rate
 gamma=1/5;                  % rate I->H: people that need hospitalization
+epsilon=0.35;               % rate E->A: people that are asymptomatic
 
 % Initialize the state of the population
 % Initially exposed
-Seeds=10;                   % number of exposed seeds
+Seeds=100;                   % number of exposed seeds
 E=zeros(size(A,1),1);       % initial infected seed
 for seed=1:Seeds
     RandSeed=ceil(N*rand);
     E(RandSeed)=1;
 end
 
-S=ones(N,1)-E;     % initial healthy people
-I=zeros(N,1); D=zeros(N,1); R=zeros(N,1); H=zeros(N,1);
-TotalI(1)=sum(I); TotalE(1)=sum(E); TotalR(1)=sum(R); TotalH(1)=sum(H);
+S=ones(N,1)-E;
+
+I=zeros(N,1); D=zeros(N,1); R=zeros(N,1); H=zeros(N,1); Asym=zeros(N,1);
+TotalE(1)=sum(E); TotalR(1)=sum(R); TotalH(1)=sum(H); TotalA(1)=sum(Asym);
+
+withMasks = zeros(N,1);
+maskscount=1000;
+while maskscount>0    %if maskscount = 0, then the dispenser will no longer run
+    x = randi(N);
+    if withMasks(x) ~= 1
+        withMasks(x) = 1;
+        maskscount = maskscount - 1;
+    end
+end
+
+temp = rand(N,1) < 0.001;
+I = and(temp, withMasks);
+TotalI(1)=sum(I);
+
+S=S-I;     % initial healthy people
 
 mailedTestingWorks = 0;
-
 % graph for lockdown
 Arand=A;
 for nodei=1:N
@@ -42,7 +59,7 @@ t=1;
 
 
 % Run iterations
-while (sum(I)+sum(E)>0)
+while (sum(I)+sum(E)+sum(Asym)+sum(H)>0)
     
     % Compute total numbers per state
     TotalS(t)=sum(S);
@@ -51,33 +68,27 @@ while (sum(I)+sum(E)>0)
     TotalR(t)=sum(R);
     TotalD(t)=sum(D);
     TotalH(t)=sum(H);
+    TotalA(t)=sum(Asym);
     
     % Always in Lockdown
     lock(t) = 1;
     
     % Transition from S to E
-    NI=Arand*I;  % vector with number of infected neighbors
     
-    mask(t)=0;
-    maskscount=1000;
-    peopleWithMaskDis=0;
-         
-    if maskscount>0 %if maskscount = 0, then the dispenser will no longer run
-        maskDis(t)=rand()<0.65;  %random number of people who get mask
-        if(maskDis(t)==1)
-            mask(t)=1;
-            peopleWithMaskDis= peopleWithMaskDis+1; %the people who get a mask from the dispenser increases by 1
-            maskscount=maskscount - 1;   %the number of masks availiable decreases when someone takes a mask
+    NI=Arand*or(I,Asym);             % vector with number of infected neighbors
+    
+    for i=1:N
+        if withMasks(i) == 1         % yes masks
+            NewE(i) = rand() < 1-(1-(beta-(0.8*beta))).^(NI(i));
+        else                         % no masks
+            NewE(i) = rand() < 1-(1-beta).^(NI(i));
         end
     end
-       
-    if mask(t)==1
-        NewE=rand(N,1)<1-(1-(beta-0.14)).^(NI); % mask used
-        NewE=and(NewE,maskDis(t));
-    else
-        NewE=rand(N,1)<1-(1-beta).^(NI);       % no masks used
-    end
     
+    if t == 1
+        NewE = NewE';
+    end
+
     % Testing mailing implementation
     for nodei=1:N
         if NI(nodei) > 0
@@ -92,12 +103,13 @@ while (sum(I)+sum(E)>0)
     end
     
     % Transition from E to I
-    CoinE2I=rand(N,1)<alpha;
+    CoinE2I=rand(N,1)<(1-epsilon)*alpha;
     NewI=and(CoinE2I,boolean(E));
-    if rand(size(A,1),1) < 0.001             %max rate virus spreads when touching surfaces
-        touchInfected(t) = 1;
-        NewI = and(NewI, touchInfected(t));
-    end
+        
+    % Transition from E to Asym
+    CoinE2Asym=rand(N,1)<epsilon*alpha;
+    NewA=and(CoinE2Asym,boolean(E));
+    NewA=and(NewA,not(NewI));
     
     % Transition from I to H
     RandomNumber=rand(N,1);
@@ -123,13 +135,19 @@ while (sum(I)+sum(E)>0)
     NewR2=and(CoinH2R,boolean(H));
     NewD2=and(CoinH2D,boolean(H));
     
+    % Transition from Asym to R
+    RandomNumber=rand(N,1);
+    CoinAsym2R=RandomNumber<delta;
+    NewR3=and(CoinAsym2R,boolean(Asym));
+    
     % Update indicator vectors
     S=S-NewE;
-    E=E+NewE-NewI;
+    E=E+NewE-NewI-NewA;
     I=I+NewI-NewH-NewR1-NewD1;
     H=H+NewH-NewR2-NewD2;
     R=R+NewR1+NewR2;
     D=D+NewD1+NewD2;
+    Asym=Asym+NewA-NewR3;
     
     t=t+1
 
@@ -143,9 +161,9 @@ DaysCOVID=t                     % days before eradication
 figure;
 plot(TotalS/N,'b'); hold on;
 plot(TotalI/N,'g');
-figure;
-plot(TotalE,'color',[0.9100    0.4100    0.1700]); hold on
-plot(TotalI,'r'); 
-plot(TotalH,'k'); 
-plot(TotalD,'m');
-plot(TotalR,'g');
+plot(TotalE/N,'color',[0.9100    0.4100    0.1700])
+plot(TotalI/N,'r'); 
+plot(TotalH/N,'k'); 
+plot(TotalD/N,'m');
+plot(TotalR/N,'g');
+plot(TotalA/N, 'c');
