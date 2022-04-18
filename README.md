@@ -1,2 +1,2 @@
 # COVID-Model
-Final Project for uPenn ESAP 2020
+Final Project for UPenn ESAP 2020
